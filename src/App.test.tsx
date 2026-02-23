@@ -1,14 +1,17 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
+import { describe, expect, it } from 'vitest'
 
 import App from './App'
 
-vi.mock('/vite.svg', () => ({ default: '/vite.svg' }))
-
 describe('App smoke test', () => {
-  it('renders the default app heading', () => {
-    render(<App />)
+  it('renders the home page heading', () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
-    expect(screen.getByRole('heading', { name: /vite \+ react/i })).toBeInTheDocument()
+    expect(screen.getByText(/frontend workspace/i)).toBeInTheDocument()
   })
 })
