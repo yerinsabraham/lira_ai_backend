@@ -36,6 +36,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: 467839759761-2bt983aq289icqes85np0pi28t91uitj.apps.googleusercontent.com
 
       - name: Upload dist
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

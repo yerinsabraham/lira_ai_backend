@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google'
 
 import { useAuthStore } from '@/app/store'
-import { login as apiLogin, credentials } from '@/services/api'
+import { env } from '@/env'
+import { login as apiLogin, googleLogin as apiGoogleLogin, credentials } from '@/services/api'
 import { LiraLogo } from '@/components/LiraLogo'
 import { Button } from '@/components/common'
 
@@ -14,6 +16,22 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function handleGoogleSuccess(response: CredentialResponse) {
+    if (!response.credential) return
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await apiGoogleLogin(response.credential)
+      setCredentials(res.token, res.user.email)
+      credentials.set(res.token)
+      onLogin()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -36,72 +54,96 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
   }
 
   return (
-    <form onSubmit={handleLogin} className="space-y-4" noValidate>
-      <div className="space-y-1.5">
-        <label htmlFor="email" className="block text-sm font-medium text-foreground">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          autoComplete="email"
-          className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50"
-          placeholder="you@creovine.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={loading}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <label htmlFor="password" className="block text-sm font-medium text-foreground">
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={loading}
-        />
-      </div>
-
-      {error && (
-        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+    <div className="space-y-4">
+      {/* Google Sign-In */}
+      {env.VITE_GOOGLE_CLIENT_ID && (
+        <>
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google sign-in failed. Please try again.')}
+              theme="outline"
+              size="large"
+              text="continue_with"
+              shape="pill"
+              width="304"
+            />
+          </div>
+          <div className="relative flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">or continue with email</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+        </>
       )}
 
-      <Button
-        type="submit"
-        disabled={loading || !email.trim() || !password.trim()}
-        className="w-full rounded-xl py-2.5"
-      >
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-            Signing in…
-          </span>
-        ) : (
-          'Sign in'
+      <form onSubmit={handleLogin} className="space-y-4" noValidate>
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="block text-sm font-medium text-foreground">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50"
+            placeholder="you@creovine.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="block text-sm font-medium text-foreground">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+
+        {error && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
         )}
-      </Button>
-    </form>
+
+        <Button
+          type="submit"
+          disabled={loading || !email.trim() || !password.trim()}
+          className="w-full rounded-xl py-2.5"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              Signing in…
+            </span>
+          ) : (
+            'Sign in'
+          )}
+        </Button>
+      </form>
+    </div>
   )
 }
 

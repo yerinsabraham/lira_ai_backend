@@ -97,6 +97,26 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
+/** Google Sign-In — pass the ID token returned by @react-oauth/google */
+export async function googleLogin(credential: string): Promise<LoginResponse> {
+  const res = await fetch(`${env.VITE_API_URL}/v1/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential }),
+  })
+  if (!res.ok) {
+    let body: Record<string, string> = {}
+    try {
+      body = await res.json()
+    } catch {
+      /* ignore */
+    }
+    throw new Error(body['error'] ?? body['message'] ?? 'Google sign-in failed')
+  }
+  const data = (await res.json()) as { accessToken: string; user: LoginResponse['user'] }
+  return { token: data.accessToken, user: data.user }
+}
+
 /** Platform login — does not require X-API-Key header. Returns { accessToken, user }. */
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const res = await fetch(`${env.VITE_API_URL}/v1/auth/login`, {
@@ -114,7 +134,6 @@ export async function login(email: string, password: string): Promise<LoginRespo
     throw new Error(body['error'] ?? body['message'] ?? 'Login failed')
   }
   const data = (await res.json()) as { accessToken: string; user: LoginResponse['user'] }
-  // Normalise: backend returns `accessToken`, our type uses `token`
   return { token: data.accessToken, user: data.user }
 }
 
