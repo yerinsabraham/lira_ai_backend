@@ -2,12 +2,22 @@ import { Hand, MessageSquare, Mic, PhoneOff, ScreenShare, Video } from 'lucide-r
 
 import { Button, Cluster } from '@/components/common'
 
-function MeetingControlsBar() {
+type MeetingControlsBarProps = {
+  onLeave?: () => void
+  isConnected?: boolean
+}
+
+function MeetingControlsBar({ onLeave, isConnected }: MeetingControlsBarProps) {
   return (
     <footer className="sticky bottom-3 z-20">
       <div className="mx-auto w-fit rounded-2xl border bg-background/95 p-2 shadow-lg backdrop-blur">
         <Cluster gap="var(--space-2)" wrap={false}>
-          <Button variant="secondary" size="icon" aria-label="Toggle microphone">
+          <Button
+            variant="secondary"
+            size="icon"
+            aria-label="Toggle microphone"
+            disabled={!isConnected}
+          >
             <Mic />
           </Button>
           <Button variant="secondary" size="icon" aria-label="Toggle camera">
@@ -22,7 +32,7 @@ function MeetingControlsBar() {
           <Button variant="secondary" size="icon" aria-label="Raise hand">
             <Hand />
           </Button>
-          <Button variant="destructive" size="icon" aria-label="Leave meeting">
+          <Button variant="destructive" size="icon" aria-label="Leave meeting" onClick={onLeave}>
             <PhoneOff />
           </Button>
         </Cluster>
@@ -31,4 +41,4 @@ function MeetingControlsBar() {
   )
 }
 
-export { MeetingControlsBar }
+export { MeetingControlsBar, type MeetingControlsBarProps }

@@ -38,7 +38,8 @@
       "@/pages/*": ["./src/pages/*"],
       "@/test": ["./src/test/index.ts"],
       "@/test/*": ["./src/test/*"],
-      "@/assets/*": ["./src/assets/*"]
+      "@/assets/*": ["./src/assets/*"],
+      "@/env": ["./src/env.ts"]
     },
 
     /* Linting */

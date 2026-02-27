@@ -10,8 +10,14 @@ import {
   CardTitle,
   Stack,
 } from '@/components/common'
+import type { TranscriptLine } from '@/app/store'
 
-function TranscriptPanel() {
+type MeetingSidebarProps = {
+  transcript?: TranscriptLine[]
+  summary?: string
+}
+
+function TranscriptPanel({ transcript = [] }: { transcript: TranscriptLine[] }) {
   return (
     <Card>
       <CardHeader>
@@ -20,33 +26,32 @@ function TranscriptPanel() {
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-52 pr-3 xl:h-80">
-          <Stack gap="var(--space-3)">
-            <p className="text-sm">
-              <Badge variant="outline" className="mr-2">
-                Alice
-              </Badge>
-              We should finalize the mobile layout for the controls before QA.
+          {transcript.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">
+              Transcript will appear here once the meeting starts…
             </p>
-            <p className="text-sm">
-              <Badge variant="outline" className="mr-2">
-                AI
-              </Badge>
-              I can generate a compact tablet-specific layout proposal.
-            </p>
-            <p className="text-sm">
-              <Badge variant="outline" className="mr-2">
-                Ben
-              </Badge>
-              Let&apos;s lock desktop breakpoints at 1280 and above.
-            </p>
-          </Stack>
+          ) : (
+            <Stack gap="var(--space-3)">
+              {transcript.map((line, i) => (
+                <p key={i} className="text-sm">
+                  <Badge
+                    variant={line.speaker === 'Lira AI' ? 'default' : 'outline'}
+                    className="mr-2"
+                  >
+                    {line.speaker}
+                  </Badge>
+                  <span className={line.isFinal ? '' : 'opacity-60'}>{line.text}</span>
+                </p>
+              ))}
+            </Stack>
+          )}
         </ScrollArea>
       </CardContent>
     </Card>
   )
 }
 
-function SummaryPanel() {
+function SummaryPanel({ summary }: { summary?: string }) {
   return (
     <Card>
       <CardHeader>
@@ -54,17 +59,17 @@ function SummaryPanel() {
         <CardDescription>AI-generated highlights update during the session.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 text-sm text-muted-foreground">
-        <p>- Responsive layout baseline is complete for mobile/tablet/desktop.</p>
-        <p>
-          - UI Lab route is available at <code>/ui-lab</code> for reusable patterns.
-        </p>
-        <p>- Next step: connect real media streams and speaking indicators.</p>
+        {summary ? (
+          <p>{summary}</p>
+        ) : (
+          <p className="italic">Summary will be generated as the meeting progresses.</p>
+        )}
       </CardContent>
     </Card>
   )
 }
 
-function MeetingSidebar() {
+function MeetingSidebar({ transcript = [], summary }: MeetingSidebarProps) {
   return (
     <aside className="rounded-xl border bg-background/70 p-2 backdrop-blur xl:sticky xl:top-6 xl:self-start">
       <div className="mb-2 hidden items-center justify-between rounded-lg border bg-card px-3 py-2 xl:flex">
@@ -73,8 +78,8 @@ function MeetingSidebar() {
       </div>
 
       <div className="hidden gap-4 xl:grid">
-        <TranscriptPanel />
-        <SummaryPanel />
+        <TranscriptPanel transcript={transcript} />
+        <SummaryPanel summary={summary} />
       </div>
 
       <Tabs defaultValue="transcript" className="xl:hidden">
@@ -83,14 +88,14 @@ function MeetingSidebar() {
           <TabsTrigger value="summary">Summary</TabsTrigger>
         </TabsList>
         <TabsContent value="transcript">
-          <TranscriptPanel />
+          <TranscriptPanel transcript={transcript} />
         </TabsContent>
         <TabsContent value="summary">
-          <SummaryPanel />
+          <SummaryPanel summary={summary} />
         </TabsContent>
       </Tabs>
     </aside>
   )
 }
 
-export { MeetingSidebar }
+export { MeetingSidebar, type MeetingSidebarProps }
