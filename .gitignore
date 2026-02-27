@@ -25,3 +25,6 @@ dist-ssr
 playwright-report
 test-results
 *.png
+.env
+.env.local
+.env.*.local
