@@ -5,13 +5,16 @@ import { describe, expect, it } from 'vitest'
 import App from './App'
 
 describe('App smoke test', () => {
-  it('renders the home page heading', () => {
+  it('renders the sign-in form on the home page', () => {
     render(
       <MemoryRouter>
         <App />
       </MemoryRouter>
     )
 
-    expect(screen.getByText(/frontend workspace/i)).toBeInTheDocument()
+    // The login form should be visible when no credentials are stored
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
   })
 })
