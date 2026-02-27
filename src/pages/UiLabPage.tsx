@@ -34,9 +34,14 @@ function UiLabPage() {
             Storybook-like internal showcase for base components and reusable UI patterns.
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <Link to="/">Back Home</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/meeting">Open Meeting Layout</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/">Back Home</Link>
+          </Button>
+        </div>
       </header>
 
       <Grid minColumnSize="18rem" gap="var(--space-6)">

@@ -16,6 +16,9 @@ function HomePage() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <Button asChild>
+            <Link to="/meeting">Open Meeting Layout</Link>
+          </Button>
+          <Button asChild>
             <Link to="/ui-lab">Open UI Lab</Link>
           </Button>
         </CardContent>
