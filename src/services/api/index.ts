@@ -54,35 +54,28 @@ export interface LoginResponse {
 // ── Credentials helpers ───────────────────────────────────────────────────────
 
 const TOKEN_KEY = 'lira_token'
-const API_KEY_KEY = 'lira_api_key'
 
 export const credentials = {
   getToken: () => localStorage.getItem(TOKEN_KEY),
-  getApiKey: () => localStorage.getItem(API_KEY_KEY),
-  set: (token: string, apiKey: string) => {
+  set: (token: string) => {
     localStorage.setItem(TOKEN_KEY, token)
-    localStorage.setItem(API_KEY_KEY, apiKey)
   },
   clear: () => {
     localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(API_KEY_KEY)
   },
-  isConfigured: () => Boolean(localStorage.getItem(TOKEN_KEY) && localStorage.getItem(API_KEY_KEY)),
+  isConfigured: () => Boolean(localStorage.getItem(TOKEN_KEY)),
 }
 
 // ── Fetch wrapper ─────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = credentials.getToken()
-  // API key: prefer stored value, fall back to build-time env var
-  const apiKey = credentials.getApiKey() || env.VITE_API_KEY || undefined
 
   const res = await fetch(`${env.VITE_API_URL}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(apiKey ? { 'X-API-Key': apiKey } : {}),
       ...(init?.headers ?? {}),
     },
   })
@@ -164,11 +157,9 @@ export async function deleteMeeting(id: string): Promise<void> {
 
 // ── WebSocket URL builder ─────────────────────────────────────────────────────
 
-export function buildWsUrl(overrides?: { apiKey?: string; token?: string }): string {
-  const apiKey = overrides?.apiKey ?? credentials.getApiKey() ?? env.VITE_API_KEY ?? ''
+export function buildWsUrl(overrides?: { token?: string }): string {
   const token = overrides?.token ?? credentials.getToken() ?? ''
   const url = new URL(env.VITE_WS_URL)
-  url.searchParams.set('apiKey', apiKey)
   url.searchParams.set('token', token)
   return url.toString()
 }

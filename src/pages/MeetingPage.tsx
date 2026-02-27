@@ -25,7 +25,7 @@ const STATIC_PARTICIPANTS: ParticipantTileProps[] = [
 
 function MeetingPage() {
   const navigate = useNavigate()
-  const { token, apiKey } = useAuthStore()
+  const { token } = useAuthStore()
   const { meetingId, meetingTitle, isConnected, aiStatus, transcript, startMeeting, endMeeting } =
     useMeeting()
 
@@ -37,10 +37,10 @@ function MeetingPage() {
 
   // Redirect if no credentials
   useEffect(() => {
-    if (!token || !apiKey) {
+    if (!token) {
       navigate('/', { replace: true })
     }
-  }, [token, apiKey, navigate])
+  }, [token, navigate])
 
   async function handleStart() {
     if (!title.trim()) return

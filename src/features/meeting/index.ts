@@ -14,7 +14,7 @@ import type { TypedWebSocketClient } from '@/services/websocket'
  *  4. Streams transcript + AI status into the Zustand store
  */
 export function useMeeting() {
-  const { token, apiKey } = useAuthStore()
+  const { token } = useAuthStore()
   const store = useMeetingStore()
   const clientRef = useRef<TypedWebSocketClient | null>(null)
 
@@ -27,8 +27,8 @@ export function useMeeting() {
 
   const startMeeting = useCallback(
     async (title: string, settings?: MeetingSettings) => {
-      if (!token || !apiKey) {
-        throw new Error('Missing credentials. Set your API key and token first.')
+      if (!token) {
+        throw new Error('Missing credentials. Please sign in first.')
       }
 
       // 1. Create meeting via REST
@@ -37,7 +37,7 @@ export function useMeeting() {
       store.clearTranscript()
 
       // 2. Build WS URL with credentials
-      const wsUrl = buildWsUrl({ token, apiKey })
+      const wsUrl = buildWsUrl({ token })
 
       // 3. Create typed WS client
       const client = createTypedWebSocketClient({ url: wsUrl })
@@ -86,7 +86,7 @@ export function useMeeting() {
 
       return meeting
     },
-    [token, apiKey, store]
+    [token, store]
   )
 
   const endMeeting = useCallback(() => {
@@ -111,7 +111,7 @@ export function useMeeting() {
     startMeeting,
     endMeeting,
     sendSettings,
-    isReady: Boolean(token && apiKey),
+    isReady: Boolean(token),
   }
 }
 

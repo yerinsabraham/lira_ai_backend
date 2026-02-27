@@ -3,9 +3,8 @@ import { persist } from 'zustand/middleware'
 
 interface AuthSlice {
   token: string | null
-  apiKey: string | null
   userEmail: string | null
-  setCredentials: (token: string, apiKey: string, email?: string) => void
+  setCredentials: (token: string, email?: string) => void
   clearCredentials: () => void
 }
 
@@ -13,10 +12,9 @@ export const useAuthStore = create<AuthSlice>()(
   persist(
     (set) => ({
       token: null,
-      apiKey: null,
       userEmail: null,
-      setCredentials: (token, apiKey, email) => set({ token, apiKey, userEmail: email ?? null }),
-      clearCredentials: () => set({ token: null, apiKey: null, userEmail: null }),
+      setCredentials: (token, email) => set({ token, userEmail: email ?? null }),
+      clearCredentials: () => set({ token: null, userEmail: null }),
     }),
     { name: 'lira-auth' }
   )

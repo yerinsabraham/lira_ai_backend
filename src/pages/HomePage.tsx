@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuthStore } from '@/app/store'
-import { env } from '@/env'
 import { login as apiLogin, credentials } from '@/services/api'
 import { LiraLogo } from '@/components/LiraLogo'
 import { Button } from '@/components/common'
@@ -26,9 +25,8 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
     setError(null)
     try {
       const res = await apiLogin(email.trim(), password.trim())
-      const apiKey = env.VITE_API_KEY
-      setCredentials(res.token, apiKey, res.user.email)
-      credentials.set(res.token, apiKey)
+      setCredentials(res.token, res.user.email)
+      credentials.set(res.token)
       onLogin()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.')
@@ -107,65 +105,6 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
   )
 }
 
-// ── Workspace key setup (only shown when VITE_API_KEY is not pre-configured) ──
-
-function WorkspaceSetup({ onSaved }: { onSaved: () => void }) {
-  const { token, userEmail, setCredentials } = useAuthStore()
-  const [apiKey, setApiKey] = useState('')
-  const [error, setError] = useState<string | null>(null)
-
-  function handleSave() {
-    if (!apiKey.trim()) {
-      setError('Please enter your workspace API key.')
-      return
-    }
-    if (!token) return
-    setCredentials(token, apiKey.trim(), userEmail ?? undefined)
-    credentials.set(token, apiKey.trim())
-    onSaved()
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-900 dark:bg-violet-950/30">
-        <p className="text-sm text-violet-800 dark:text-violet-300">
-          <span className="font-medium">One more step.</span> Enter your workspace API key to
-          connect Lira AI to your organisation.
-        </p>
-      </div>
-      <div className="space-y-1.5">
-        <label htmlFor="ws-api-key" className="block text-sm font-medium text-foreground">
-          Workspace API Key
-        </label>
-        <input
-          id="ws-api-key"
-          type="password"
-          className="w-full rounded-xl border border-input bg-background px-4 py-2.5 font-mono text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-          placeholder="sk_live_…"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">
-          Find this in your organisation settings at{' '}
-          <a
-            href="https://api.creovine.com/docs"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            api.creovine.com
-          </a>
-          .
-        </p>
-      </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button onClick={handleSave} disabled={!apiKey.trim()} className="w-full rounded-xl py-2.5">
-        Connect Workspace
-      </Button>
-    </div>
-  )
-}
-
 // ── Authenticated home ────────────────────────────────────────────────────────
 
 function AuthenticatedHome() {
@@ -228,18 +167,12 @@ function AuthenticatedHome() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type Stage = 'login' | 'workspace' | 'home'
+type Stage = 'login' | 'home'
 
 function HomePage() {
-  const { token, apiKey } = useAuthStore()
+  const { token } = useAuthStore()
 
-  function deriveStage(): Stage {
-    if (!token) return 'login'
-    if (!apiKey && !env.VITE_API_KEY) return 'workspace'
-    return 'home'
-  }
-
-  const [stage, setStage] = useState<Stage>(deriveStage)
+  const [stage, setStage] = useState<Stage>(() => (token ? 'home' : 'login'))
 
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-background via-background to-violet-50/30 p-4 dark:to-violet-950/20">
@@ -251,18 +184,13 @@ function HomePage() {
             <p className="text-center text-sm text-muted-foreground">
               {stage === 'login'
                 ? 'Sign in with your Creovine account'
-                : stage === 'workspace'
-                  ? 'Connect your workspace'
-                  : 'AI-powered meeting participant'}
+                : 'AI-powered meeting participant'}
             </p>
           </div>
 
           {/* Body */}
           <div className="px-8 py-6">
-            {stage === 'login' && (
-              <LoginForm onLogin={() => setStage(env.VITE_API_KEY ? 'home' : 'workspace')} />
-            )}
-            {stage === 'workspace' && <WorkspaceSetup onSaved={() => setStage('home')} />}
+            {stage === 'login' && <LoginForm onLogin={() => setStage('home')} />}
             {stage === 'home' && <AuthenticatedHome />}
           </div>
         </div>
