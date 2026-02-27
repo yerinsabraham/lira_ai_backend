@@ -10,6 +10,7 @@ import {
   initPlayback,
   playPcmChunk,
   resetPlayback,
+  flushPlayback,
   destroyPlayback,
 } from '@/lib/audio'
 
@@ -29,6 +30,8 @@ export function useAudioMeeting() {
   const wsRef = useRef<WebSocket | null>(null)
   const sessionIdRef = useRef<string | null>(null)
   const micActiveRef = useRef(false)
+  /** When true, drop incoming binary audio (user interrupted the AI). */
+  const audioMutedRef = useRef(false)
 
   const [phase, setPhase] = useState<SessionPhase>('idle')
   const [micOn, setMicOn] = useState(false)
@@ -103,6 +106,8 @@ export function useAudioMeeting() {
 
       ws.onmessage = (event) => {
         if (event.data instanceof ArrayBuffer) {
+          // Drop audio if the user interrupted the AI
+          if (audioMutedRef.current) return
           // Binary: AI audio playback
           playPcmChunk(event.data)
           return
@@ -158,16 +163,21 @@ export function useAudioMeeting() {
       }
 
       case 'transcript': {
-        // Server sends transcript as a Message object
-        const speaker = (msg.speaker as string) ?? (msg.is_ai ? 'Lira AI' : 'You')
-        const text = (msg.text as string) ?? ''
+        // Server sends transcript inside payload: { speaker, text, is_ai, timestamp, ... }
+        const p = (msg.payload as Record<string, unknown>) ?? {}
+        const isAiMsg = p.is_ai === true
+        const speaker = (p.speaker as string) ?? (isAiMsg ? 'AI' : 'You')
+        const text = (p.text as string) ?? ''
+        if (!text.trim()) break
         store.addTranscriptLine({
           speaker,
           text,
           isFinal: true,
-          at: (msg.timestamp as string) ?? new Date().toISOString(),
+          isAi: isAiMsg,
+          at: (p.timestamp as string) ?? new Date().toISOString(),
         })
-        if (msg.is_ai) {
+        if (isAiMsg) {
+          audioMutedRef.current = false // AI is speaking again — accept audio
           store.setAiStatus('speaking')
           store.setLastAiResponse(text)
         }
@@ -175,7 +185,9 @@ export function useAudioMeeting() {
       }
 
       case 'ai_response': {
-        const text = (msg.text as string) ?? ''
+        const p = (msg.payload as Record<string, unknown>) ?? {}
+        const text = (p.text as string) ?? ''
+        audioMutedRef.current = false // New AI response — accept audio
         store.setLastAiResponse(text)
         store.setAiStatus('speaking')
         break
@@ -187,8 +199,18 @@ export function useAudioMeeting() {
         break
       }
 
+      case 'interruption': {
+        // User barged in — immediately stop all queued AI audio
+        audioMutedRef.current = true
+        flushPlayback()
+        store.setAiStatus('listening')
+        console.info('[Lira] Barge-in: stopped AI audio playback')
+        break
+      }
+
       case 'audio_ready': {
-        console.info('[Lira] Recording available:', msg.audio_url)
+        const p = (msg.payload as Record<string, unknown>) ?? {}
+        console.info('[Lira] Recording available:', p.audio_url)
         break
       }
 
@@ -203,7 +225,8 @@ export function useAudioMeeting() {
       }
 
       case 'error': {
-        const errMsg = (msg.message as string) ?? 'Unknown server error'
+        const p = (msg.payload as Record<string, unknown>) ?? {}
+        const errMsg = (p.message as string) ?? 'Unknown server error'
         console.error('[Lira WS Error]', errMsg)
         setError(errMsg)
         break
@@ -273,13 +296,6 @@ export function useAudioMeeting() {
 
   const sendText = useCallback((text: string) => {
     sendAction('text', { text })
-    store.addTranscriptLine({
-      speaker: 'You',
-      text,
-      isFinal: true,
-      at: new Date().toISOString(),
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── End Meeting ────────────────────────────────────────────────────────────

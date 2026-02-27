@@ -87,6 +87,8 @@ export function getMicLevel(): number {
 
 let playbackCtx: AudioContext | null = null
 let nextPlayTime = 0
+/** Track all scheduled audio sources so we can stop them on interruption. */
+const activeSources: AudioBufferSourceNode[] = []
 
 /** Initialise playback AudioContext (call after user gesture). */
 export function initPlayback(): void {
@@ -115,24 +117,49 @@ export function playPcmChunk(pcmData: ArrayBuffer): void {
   source.buffer = buffer
   source.connect(playbackCtx.destination)
 
+  // Track this source for interruption
+  activeSources.push(source)
+  source.onended = () => {
+    const idx = activeSources.indexOf(source)
+    if (idx !== -1) activeSources.splice(idx, 1)
+  }
+
   const now = playbackCtx.currentTime
   const startTime = Math.max(now + 0.01, nextPlayTime)
   source.start(startTime)
   nextPlayTime = startTime + buffer.duration
 }
 
+/**
+ * Immediately stop all queued/playing AI audio and reset the playback queue.
+ * Called on barge-in (user interrupts AI).
+ */
+export function flushPlayback(): void {
+  // Stop all scheduled and currently-playing audio sources
+  for (const source of activeSources) {
+    try {
+      source.stop()
+      source.disconnect()
+    } catch {
+      // Already stopped or not started — ignore
+    }
+  }
+  activeSources.length = 0
+  nextPlayTime = 0
+}
+
 /** Reset playback queue (e.g. when AI stops speaking). */
 export function resetPlayback(): void {
-  nextPlayTime = 0
+  flushPlayback()
 }
 
 /** Destroy playback context entirely. */
 export function destroyPlayback(): void {
+  flushPlayback()
   if (playbackCtx) {
     void playbackCtx.close()
     playbackCtx = null
   }
-  nextPlayTime = 0
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

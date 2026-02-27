@@ -36,6 +36,7 @@ export interface TranscriptLine {
   text: string
   isFinal: boolean
   at: string
+  isAi?: boolean
 }
 
 export type AiStatus = 'idle' | 'listening' | 'thinking' | 'speaking'
@@ -75,7 +76,16 @@ export const useMeetingStore = create<MeetingSlice>()((set) => ({
     }),
   setConnected: (v) => set({ isConnected: v }),
   setAiStatus: (status) => set({ aiStatus: status }),
-  addTranscriptLine: (line) => set((s) => ({ transcript: [...s.transcript.slice(-199), line] })),
+  addTranscriptLine: (line) =>
+    set((s) => {
+      // Deduplicate: skip if the last line from the same speaker has identical text
+      // (Nova Sonic can emit duplicate content blocks for the same spoken turn)
+      const last = s.transcript[s.transcript.length - 1]
+      if (last && last.isAi === line.isAi && last.text.trim() === line.text.trim()) {
+        return {} // no-op
+      }
+      return { transcript: [...s.transcript.slice(-199), line] }
+    }),
   setLastAiResponse: (text) => set({ lastAiResponse: text }),
   clearTranscript: () => set({ transcript: [] }),
 }))

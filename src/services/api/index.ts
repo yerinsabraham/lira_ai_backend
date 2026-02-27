@@ -7,6 +7,7 @@ export interface MeetingSettings {
   participation_level?: number // 0.0 – 1.0
   wake_word_enabled?: boolean
   proactive_suggest?: boolean
+  ai_name?: string // Name the AI responds to (default: "Lira")
   voice_id?: string
   language?: string
 }

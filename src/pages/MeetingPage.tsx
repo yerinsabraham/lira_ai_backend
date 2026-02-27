@@ -15,6 +15,7 @@ function MeetingPage() {
   const { token } = useAuthStore()
   const meeting = useAudioMeeting()
   const [title, setTitle] = useState('')
+  const [aiName, setAiName] = useState('Lira')
   const [startError, setStartError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -27,7 +28,10 @@ function MeetingPage() {
     if (!title.trim()) return
     setStartError(null)
     try {
-      await meeting.startMeeting(title.trim())
+      await meeting.startMeeting(title.trim(), {
+        ai_name: aiName.trim() || 'Lira',
+        wake_word_enabled: true,
+      })
     } catch (e) {
       setStartError(e instanceof Error ? e.message : 'Failed to start meeting')
     }
@@ -68,6 +72,26 @@ function MeetingPage() {
                   onChange={(e) => setTitle(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleStart()}
                 />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="ai-name"
+                  className="mb-1.5 block text-sm font-medium text-slate-200"
+                >
+                  AI participant name
+                </label>
+                <input
+                  id="ai-name"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/30"
+                  placeholder="Lira"
+                  value={aiName}
+                  onChange={(e) => setAiName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleStart()}
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Say this name during the meeting to get the AI’s attention
+                </p>
               </div>
 
               {(startError || meeting.error) && (
@@ -126,6 +150,7 @@ function MeetingPage() {
       <ActiveMeetingHeader
         title={meeting.meetingTitle ?? title}
         isConnected={meeting.isConnected}
+        aiName={aiName}
         onLeave={handleLeave}
       />
 
@@ -134,11 +159,11 @@ function MeetingPage() {
         {/* Participant cards */}
         <div className="grid gap-4 sm:grid-cols-2">
           <UserCard micOn={meeting.micOn} micLevel={meeting.micLevel} />
-          <AiCard status={meeting.aiStatus} />
+          <AiCard status={meeting.aiStatus} aiName={aiName} />
         </div>
 
         {/* Transcript */}
-        <TranscriptPanel transcript={meeting.transcript} />
+        <TranscriptPanel transcript={meeting.transcript} aiName={aiName} />
 
         {/* Text input fallback */}
         <TextInput onSend={meeting.sendText} disabled={!meeting.isConnected} />
@@ -148,6 +173,7 @@ function MeetingPage() {
       <Controls
         micOn={meeting.micOn}
         isConnected={meeting.isConnected}
+        aiName={aiName}
         onToggleMic={meeting.toggleMic}
         onLeave={handleLeave}
       />
@@ -160,10 +186,12 @@ function MeetingPage() {
 function ActiveMeetingHeader({
   title,
   isConnected,
+  aiName,
   onLeave,
 }: {
   title: string
   isConnected: boolean
+  aiName: string
   onLeave: () => void
 }) {
   return (
@@ -173,7 +201,7 @@ function ActiveMeetingHeader({
         <div>
           <h1 className="text-base font-semibold tracking-tight sm:text-lg">{title}</h1>
           <p className="text-xs text-slate-400">
-            {isConnected ? 'Live — Lira AI is active' : 'Connecting…'}
+            {isConnected ? `Live — ${aiName} is listening` : 'Connecting…'}
           </p>
         </div>
       </div>
@@ -279,7 +307,7 @@ const STATUS_CONFIG: Record<AiStatus, { label: string; color: string; glow: stri
   speaking: { label: 'Speaking', color: 'text-emerald-400', glow: 'shadow-emerald-500/20' },
 }
 
-function AiCard({ status }: { status: AiStatus }) {
+function AiCard({ status, aiName }: { status: AiStatus; aiName: string }) {
   const cfg = STATUS_CONFIG[status]
 
   return (
@@ -302,8 +330,8 @@ function AiCard({ status }: { status: AiStatus }) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-semibold">Lira AI</p>
-          <p className="text-xs text-slate-400">AI Meeting Participant</p>
+          <p className="truncate text-base font-semibold">{aiName}</p>
+          <p className="text-xs text-slate-400">AI Meeting Participant — say “{aiName}” to speak</p>
         </div>
 
         {/* Status pill */}
@@ -351,7 +379,7 @@ function AiCard({ status }: { status: AiStatus }) {
 
 // ── Transcript Panel ────────────────────────────────────────────────────────
 
-function TranscriptPanel({ transcript }: { transcript: TranscriptLine[] }) {
+function TranscriptPanel({ transcript, aiName }: { transcript: TranscriptLine[]; aiName: string }) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -377,30 +405,33 @@ function TranscriptPanel({ transcript }: { transcript: TranscriptLine[] }) {
             Tap the microphone to start speaking. Transcript will appear here…
           </p>
         ) : (
-          transcript.map((line, i) => (
-            <div key={i} className="flex gap-3">
-              <span
-                className={cn(
-                  'mt-0.5 inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
-                  line.speaker === 'Lira AI' || line.speaker === 'ai' || line.speaker === 'Lira'
-                    ? 'bg-sky-500/15 text-sky-400'
-                    : 'bg-violet-500/15 text-violet-400'
-                )}
-              >
-                {line.speaker === 'Lira AI' || line.speaker === 'ai' || line.speaker === 'Lira'
-                  ? 'Lira AI'
-                  : 'You'}
-              </span>
-              <p
-                className={cn(
-                  'text-sm leading-relaxed',
-                  line.isFinal ? 'text-slate-200' : 'text-slate-400 italic'
-                )}
-              >
-                {line.text}
-              </p>
-            </div>
-          ))
+          transcript.map((line, i) => {
+            const isAi =
+              line.isAi === true ||
+              line.speaker.toLowerCase() === aiName.toLowerCase() ||
+              line.speaker === 'ai' ||
+              line.speaker === 'assistant'
+            return (
+              <div key={i} className="flex gap-3">
+                <span
+                  className={cn(
+                    'mt-0.5 inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+                    isAi ? 'bg-sky-500/15 text-sky-400' : 'bg-violet-500/15 text-violet-400'
+                  )}
+                >
+                  {isAi ? aiName : 'You'}
+                </span>
+                <p
+                  className={cn(
+                    'text-sm leading-relaxed',
+                    line.isFinal ? 'text-slate-200' : 'text-slate-400 italic'
+                  )}
+                >
+                  {line.text}
+                </p>
+              </div>
+            )
+          })
         )}
       </div>
     </div>
@@ -444,11 +475,13 @@ function TextInput({ onSend, disabled }: { onSend: (text: string) => void; disab
 function Controls({
   micOn,
   isConnected,
+  aiName,
   onToggleMic,
   onLeave,
 }: {
   micOn: boolean
   isConnected: boolean
+  aiName: string
   onToggleMic: () => void
   onLeave: () => void
 }) {
@@ -486,7 +519,7 @@ function Controls({
       {/* Mic hint */}
       <p className="mt-2 text-center text-xs text-slate-500">
         {micOn
-          ? 'Microphone is on — speak naturally, Lira AI is listening'
+          ? `Microphone is on — say "${aiName}" to get the AI's attention`
           : 'Tap the mic button to start speaking'}
       </p>
     </footer>
