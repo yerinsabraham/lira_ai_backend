@@ -2,86 +2,167 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuthStore } from '@/app/store'
-import { credentials } from '@/services/api'
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  Stack,
-} from '@/components/common'
+import { env } from '@/env'
+import { login as apiLogin, credentials } from '@/services/api'
+import { LiraLogo } from '@/components/LiraLogo'
+import { Button } from '@/components/common'
 
-// ── Credentials setup form ────────────────────────────────────────────────────
+// ── Login form ────────────────────────────────────────────────────────────────
 
-function CredentialsForm({ onSaved }: { onSaved: () => void }) {
+function LoginForm({ onLogin }: { onLogin: () => void }) {
   const { setCredentials } = useAuthStore()
-  const [token, setToken] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter your email and password.')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await apiLogin(email.trim(), password.trim())
+      const apiKey = env.VITE_API_KEY
+      setCredentials(res.token, apiKey, res.user.email)
+      credentials.set(res.token, apiKey)
+      onLogin()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleLogin} className="space-y-4" noValidate>
+      <div className="space-y-1.5">
+        <label htmlFor="email" className="block text-sm font-medium text-foreground">
+          Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          autoComplete="email"
+          className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50"
+          placeholder="you@creovine.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={loading}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="password" className="block text-sm font-medium text-foreground">
+          Password
+        </label>
+        <input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50"
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
+        />
+      </div>
+
+      {error && (
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
+
+      <Button
+        type="submit"
+        disabled={loading || !email.trim() || !password.trim()}
+        className="w-full rounded-xl py-2.5"
+      >
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            Signing in…
+          </span>
+        ) : (
+          'Sign in'
+        )}
+      </Button>
+    </form>
+  )
+}
+
+// ── Workspace key setup (only shown when VITE_API_KEY is not pre-configured) ──
+
+function WorkspaceSetup({ onSaved }: { onSaved: () => void }) {
+  const { token, userEmail, setCredentials } = useAuthStore()
   const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   function handleSave() {
-    if (!token.trim() || !apiKey.trim()) {
-      setError('Both fields are required.')
+    if (!apiKey.trim()) {
+      setError('Please enter your workspace API key.')
       return
     }
-    setCredentials(token.trim(), apiKey.trim())
-    credentials.set(token.trim(), apiKey.trim())
+    if (!token) return
+    setCredentials(token, apiKey.trim(), userEmail ?? undefined)
+    credentials.set(token, apiKey.trim())
     onSaved()
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <Badge className="w-fit">Setup Required</Badge>
-        <h1 className="text-2xl font-semibold tracking-tight">Connect to Lira AI</h1>
-        <CardDescription>
-          Enter your Creovine credentials to get started. You can obtain these from{' '}
+    <div className="space-y-4">
+      <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-900 dark:bg-violet-950/30">
+        <p className="text-sm text-violet-800 dark:text-violet-300">
+          <span className="font-medium">One more step.</span> Enter your workspace API key to
+          connect Lira AI to your organisation.
+        </p>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor="ws-api-key" className="block text-sm font-medium text-foreground">
+          Workspace API Key
+        </label>
+        <input
+          id="ws-api-key"
+          type="password"
+          className="w-full rounded-xl border border-input bg-background px-4 py-2.5 font-mono text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+          placeholder="sk_live_…"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          Find this in your organisation settings at{' '}
           <a
             href="https://api.creovine.com/docs"
             target="_blank"
             rel="noreferrer"
             className="underline"
           >
-            api.creovine.com/docs
+            api.creovine.com
           </a>
           .
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Stack gap="var(--space-3)">
-          <div className="space-y-1">
-            <label htmlFor="lira-token" className="text-sm font-medium">
-              JWT Token
-            </label>
-            <input
-              id="lira-token"
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring"
-              placeholder="eyJ…"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="lira-api-key" className="text-sm font-medium">
-              API Key
-            </label>
-            <input
-              id="lira-api-key"
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring"
-              placeholder="lra_…"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button onClick={handleSave} className="w-full">
-            Save &amp; Continue
-          </Button>
-        </Stack>
-      </CardContent>
-    </Card>
+        </p>
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button onClick={handleSave} disabled={!apiKey.trim()} className="w-full rounded-xl py-2.5">
+        Connect Workspace
+      </Button>
+    </div>
   )
 }
 
@@ -97,35 +178,107 @@ function AuthenticatedHome() {
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <Badge className="w-fit">Lira AI</Badge>
-        <h1 className="text-2xl font-semibold tracking-tight">Ready to Meet</h1>
-        <CardDescription>
-          {userEmail ? `Signed in as ${userEmail}` : 'Credentials configured.'} Lira AI will join
-          your meeting as an active participant powered by Amazon Nova Sonic.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap gap-3">
-        <Button onClick={() => navigate('/meeting')}>Start a Meeting</Button>
-        <Button variant="outline" onClick={handleSignOut}>
-          Change Credentials
+    <div className="space-y-6">
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-purple-500 shadow-lg shadow-violet-200 dark:shadow-violet-900/40">
+          <svg viewBox="0 0 32 32" fill="none" className="h-9 w-9" aria-hidden="true">
+            <rect x="5" y="13" width="2.5" height="6" rx="1.25" fill="white" opacity="0.65" />
+            <rect x="9" y="10" width="2.5" height="12" rx="1.25" fill="white" />
+            <rect x="13" y="7" width="2.5" height="18" rx="1.25" fill="white" />
+            <rect x="17" y="10" width="2.5" height="12" rx="1.25" fill="white" />
+            <rect x="21" y="13" width="2.5" height="6" rx="1.25" fill="white" opacity="0.65" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-semibold">Ready to meet</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {userEmail ? (
+            <>
+              Signed in as <span className="font-medium text-foreground">{userEmail}</span>
+            </>
+          ) : (
+            'Lira AI is ready to join your meeting.'
+          )}
+        </p>
+      </div>
+
+      <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground leading-relaxed">
+        Lira joins your meeting as an active participant — transcribing, surfacing insights, and
+        responding in real-time, powered by{' '}
+        <span className="font-medium text-foreground">Amazon Nova Sonic</span>.
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Button
+          onClick={() => navigate('/meeting')}
+          className="w-full rounded-xl py-2.5 font-medium"
+        >
+          Start a Meeting
         </Button>
-      </CardContent>
-    </Card>
+        <Button
+          variant="ghost"
+          onClick={handleSignOut}
+          className="w-full rounded-xl py-2.5 text-muted-foreground"
+        >
+          Sign out
+        </Button>
+      </div>
+    </div>
   )
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+type Stage = 'login' | 'workspace' | 'home'
+
 function HomePage() {
   const { token, apiKey } = useAuthStore()
-  const isConfigured = Boolean(token && apiKey)
-  const [configured, setConfigured] = useState(isConfigured)
+
+  function deriveStage(): Stage {
+    if (!token) return 'login'
+    if (!apiKey && !env.VITE_API_KEY) return 'workspace'
+    return 'home'
+  }
+
+  const [stage, setStage] = useState<Stage>(deriveStage)
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-lg items-center p-6">
-      {configured ? <AuthenticatedHome /> : <CredentialsForm onSaved={() => setConfigured(true)} />}
+    <main className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-background via-background to-violet-50/30 p-4 dark:to-violet-950/20">
+      <div className="w-full max-w-sm">
+        <div className="rounded-2xl border bg-card shadow-xl shadow-black/5">
+          {/* Header */}
+          <div className="flex flex-col items-center gap-3 border-b px-8 py-8">
+            <LiraLogo size="lg" />
+            <p className="text-center text-sm text-muted-foreground">
+              {stage === 'login'
+                ? 'Sign in with your Creovine account'
+                : stage === 'workspace'
+                  ? 'Connect your workspace'
+                  : 'AI-powered meeting participant'}
+            </p>
+          </div>
+
+          {/* Body */}
+          <div className="px-8 py-6">
+            {stage === 'login' && (
+              <LoginForm onLogin={() => setStage(env.VITE_API_KEY ? 'home' : 'workspace')} />
+            )}
+            {stage === 'workspace' && <WorkspaceSetup onSaved={() => setStage('home')} />}
+            {stage === 'home' && <AuthenticatedHome />}
+          </div>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          Powered by{' '}
+          <a
+            href="https://creovine.com"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium underline-offset-2 hover:underline"
+          >
+            Creovine
+          </a>
+        </p>
+      </div>
     </main>
   )
 }

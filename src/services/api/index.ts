@@ -74,7 +74,8 @@ export const credentials = {
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = credentials.getToken()
-  const apiKey = credentials.getApiKey()
+  // API key: prefer stored value, fall back to build-time env var
+  const apiKey = credentials.getApiKey() || env.VITE_API_KEY || undefined
 
   const res = await fetch(`${env.VITE_API_URL}${path}`, {
     ...init,
@@ -103,11 +104,25 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
+/** Platform login — does not require X-API-Key header. Returns { accessToken, user }. */
 export async function login(email: string, password: string): Promise<LoginResponse> {
-  return apiFetch<LoginResponse>('/lira/v1/auth/login', {
+  const res = await fetch(`${env.VITE_API_URL}/v1/auth/login`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   })
+  if (!res.ok) {
+    let body: Record<string, string> = {}
+    try {
+      body = await res.json()
+    } catch {
+      /* ignore */
+    }
+    throw new Error(body['error'] ?? body['message'] ?? 'Login failed')
+  }
+  const data = (await res.json()) as { accessToken: string; user: LoginResponse['user'] }
+  // Normalise: backend returns `accessToken`, our type uses `token`
+  return { token: data.accessToken, user: data.user }
 }
 
 // ── Meetings ──────────────────────────────────────────────────────────────────
@@ -150,7 +165,7 @@ export async function deleteMeeting(id: string): Promise<void> {
 // ── WebSocket URL builder ─────────────────────────────────────────────────────
 
 export function buildWsUrl(overrides?: { apiKey?: string; token?: string }): string {
-  const apiKey = overrides?.apiKey ?? credentials.getApiKey() ?? ''
+  const apiKey = overrides?.apiKey ?? credentials.getApiKey() ?? env.VITE_API_KEY ?? ''
   const token = overrides?.token ?? credentials.getToken() ?? ''
   const url = new URL(env.VITE_WS_URL)
   url.searchParams.set('apiKey', apiKey)
