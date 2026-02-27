@@ -22,8 +22,22 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
     setError(null)
     setLoading(true)
     try {
+      // Decode Google JWT to extract name + picture
+      let gName: string | undefined
+      let gPicture: string | undefined
+      try {
+        const payload = JSON.parse(atob(response.credential.split('.')[1])) as {
+          name?: string
+          picture?: string
+        }
+        gName = payload.name
+        gPicture = payload.picture
+      } catch {
+        // ignore decode errors
+      }
+
       const res = await apiGoogleLogin(response.credential)
-      setCredentials(res.token, res.user.email)
+      setCredentials(res.token, res.user.email, gName, gPicture)
       credentials.set(res.token)
       onLogin()
     } catch (err) {
