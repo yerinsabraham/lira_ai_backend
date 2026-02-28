@@ -1,4 +1,5 @@
 export * from './ai'
+export * from './bot-deploy'
 export * from './common'
 export * from './controls'
 export * from './meeting-room'

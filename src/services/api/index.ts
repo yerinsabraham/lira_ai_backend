@@ -175,6 +175,95 @@ export async function deleteMeeting(id: string): Promise<void> {
   return apiFetch<void>(`/lira/v1/meetings/${id}`, { method: 'DELETE' })
 }
 
+// ── Bot Deploy API ────────────────────────────────────────────────────────────
+
+export type BotState =
+  | 'launching'
+  | 'navigating'
+  | 'in_lobby'
+  | 'joining'
+  | 'active'
+  | 'leaving'
+  | 'terminated'
+  | 'error'
+
+export interface BotStatusResponse {
+  botId: string
+  meetingUrl: string
+  platform: 'google_meet' | 'zoom'
+  state: BotState
+  displayName: string
+  sessionId: string | null
+  startedAt: string
+  error?: string
+}
+
+export interface DeployBotResponse {
+  botId: string
+  meetingUrl: string
+  platform: 'google_meet' | 'zoom'
+  state: BotState
+}
+
+/** Deploy a bot to a Google Meet / Zoom meeting */
+export async function deployBot(
+  meetingUrl: string,
+  displayName?: string
+): Promise<DeployBotResponse> {
+  return apiFetch<DeployBotResponse>('/lira/v1/bot/deploy', {
+    method: 'POST',
+    body: JSON.stringify({ meetingUrl, displayName }),
+  })
+}
+
+/** Get the current status of a deployed bot */
+export async function getBotStatus(botId: string): Promise<BotStatusResponse> {
+  return apiFetch<BotStatusResponse>(`/lira/v1/bot/${botId}`)
+}
+
+/** Terminate a running bot */
+export async function terminateBot(botId: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/lira/v1/bot/${botId}/terminate`, {
+    method: 'POST',
+  })
+}
+
+/** List all active bots */
+export async function listActiveBots(): Promise<BotStatusResponse[]> {
+  const data = await apiFetch<{ bots: BotStatusResponse[] }>('/lira/v1/bot/active')
+  return data.bots
+}
+
+// ── Bot Auth Status API ───────────────────────────────────────────────────────
+
+export interface PlatformAuthStatus {
+  configured: boolean
+  refreshedAt: string | null
+  expiresAt: string | null
+  daysRemaining: number | null
+  urgency: 'ok' | 'warning' | 'critical' | 'expired' | 'not_configured'
+  lastSilentRefresh: string | null
+}
+
+export interface AuthStatusResponse {
+  google: PlatformAuthStatus
+  zoom: PlatformAuthStatus
+}
+
+/** Get Google/Zoom session status + days until expiry */
+export async function getBotAuthStatus(): Promise<AuthStatusResponse> {
+  return apiFetch<AuthStatusResponse>('/lira/v1/bot/auth-status')
+}
+
+/** Trigger a silent background refresh of the Google session */
+export async function refreshBotAuth(): Promise<{
+  success: boolean
+  message: string
+  status: AuthStatusResponse
+}> {
+  return apiFetch('/lira/v1/bot/auth-refresh', { method: 'POST' })
+}
+
 // ── WebSocket URL builder ─────────────────────────────────────────────────────
 
 export function buildWsUrl(overrides?: { token?: string }): string {

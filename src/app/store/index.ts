@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { BotState } from '@/services/api'
 
 interface AuthSlice {
   token: string | null
@@ -88,4 +89,53 @@ export const useMeetingStore = create<MeetingSlice>()((set) => ({
     }),
   setLastAiResponse: (text) => set({ lastAiResponse: text }),
   clearTranscript: () => set({ transcript: [] }),
+}))
+
+// ── Bot Deploy Store ──────────────────────────────────────────────────────────
+
+interface BotSlice {
+  botId: string | null
+  meetingUrl: string | null
+  platform: 'google_meet' | 'zoom' | null
+  botState: BotState | null
+  error: string | null
+  deployedAt: string | null
+  setBotDeployed: (
+    botId: string,
+    meetingUrl: string,
+    platform: 'google_meet' | 'zoom',
+    state: BotState
+  ) => void
+  setBotState: (state: BotState) => void
+  setBotError: (error: string) => void
+  clearBot: () => void
+}
+
+export const useBotStore = create<BotSlice>()((set) => ({
+  botId: null,
+  meetingUrl: null,
+  platform: null,
+  botState: null,
+  error: null,
+  deployedAt: null,
+  setBotDeployed: (botId, meetingUrl, platform, state) =>
+    set({
+      botId,
+      meetingUrl,
+      platform,
+      botState: state,
+      error: null,
+      deployedAt: new Date().toISOString(),
+    }),
+  setBotState: (state) => set({ botState: state, error: null }),
+  setBotError: (error) => set({ botState: 'error', error }),
+  clearBot: () =>
+    set({
+      botId: null,
+      meetingUrl: null,
+      platform: null,
+      botState: null,
+      error: null,
+      deployedAt: null,
+    }),
 }))

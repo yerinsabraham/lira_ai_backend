@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+// import { useNavigate } from 'react-router-dom' // kept for when we restore demo meeting flow
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google'
 
 import { useAuthStore } from '@/app/store'
@@ -7,6 +7,7 @@ import { env } from '@/env'
 import { login as apiLogin, googleLogin as apiGoogleLogin, credentials } from '@/services/api'
 import { LiraLogo } from '@/components/LiraLogo'
 import { Button } from '@/components/common'
+import { BotDeployPanel, AuthStatusCard } from '@/components/bot-deploy'
 
 // ── Login form ────────────────────────────────────────────────────────────────
 
@@ -164,7 +165,6 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
 // ── Authenticated home ────────────────────────────────────────────────────────
 
 function AuthenticatedHome() {
-  const navigate = useNavigate()
   const { userEmail, clearCredentials } = useAuthStore()
 
   function handleSignOut() {
@@ -196,6 +196,13 @@ function AuthenticatedHome() {
         </p>
       </div>
 
+      {/* ── Bot Deploy – paste link + join ─────────────────────────────────── */}
+      <BotDeployPanel />
+
+      {/* ── Auth status – shows days remaining + refresh button ──────────── */}
+      <AuthStatusCard />
+
+      {/* ── Old demo flow (commented out — keep for reference) ─────────────
       <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground leading-relaxed">
         Lira joins your meeting as an active participant — transcribing, surfacing insights, and
         responding in real-time, powered by{' '}
@@ -209,6 +216,10 @@ function AuthenticatedHome() {
         >
           Start a Meeting
         </Button>
+      </div>
+      ───────────────────────────────────────────────────────────────────── */}
+
+      <div className="flex flex-col gap-2">
         <Button
           variant="ghost"
           onClick={handleSignOut}
